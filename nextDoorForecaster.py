@@ -7,6 +7,7 @@ import time
 import uuid
 from random import random
 import itertools
+from joblib import Parallel, delayed
 
 class nextDoorForecaster:
     '''
@@ -17,10 +18,9 @@ class nextDoorForecaster:
         autopep8 --in-place --aggressive recommender.py
 
         Updates:
-         - 
+         - 15.02.19 Add parallel capabilities through joblib
 
         Full documentation:
-
 
     '''
 
@@ -75,7 +75,6 @@ class nextDoorForecaster:
 
     def __solve_nnls_training(self, X, Y):
 
-        self.__queryStart = time.time()
         numRecords = X.shape[0]
         testSize   = round(numRecords*self.training_split)
 
@@ -101,8 +100,7 @@ class nextDoorForecaster:
         featWeight, rnorm  = nnls(M, e)
         self.featWeight = featWeight
         self.rnorm = rnorm
-        print(f'NNLS size {M.shape[0]}x{M.shape[1]}', end='')
-        self.__setElapsed__()
+        #print(f'NNLS size {M.shape[0]}x{M.shape[1]}', end='')
 
     def __setElapsed__(self):
         self.__queryEnd     = time.time()
@@ -193,8 +191,6 @@ class nextDoorForecaster:
             
             normalisedWeights = currentWeightsSorted[0:self.kNeighbours]/sum(currentWeightsSorted[0:self.kNeighbours])
             currentFrc = normalisedWeights.dot(Y_trainSorted[0:self.kNeighbours])
-            
-            print(f'Forecast {currentFrc:.2f}')
             y_hat.append(currentFrc)
 
         return np.array(y_hat)
@@ -221,3 +217,64 @@ class nextDoorForecaster:
         'MAPE': MAPE, 
         'residuals': e_t}
         return d
+
+    @staticmethod
+    def one_go(X_train,Y_train,X_val,y_val,X_test):
+        forecaster = nextDoorForecaster(training_split=0.5)
+        forecaster.train(X_train.copy(),Y_train.copy())
+        _,_= forecaster.cv_neighbours(X_val.copy(), y_val.copy())
+        
+        predictions = forecaster.predict(X_test)
+        return [predictions,forecaster.kNeighbours,forecaster.featWeight]
+
+    @staticmethod
+    def fit(X,Y,X_val,y_val,X_test,num_forecasters=100):
+        queryStart = time.time()
+        r = Parallel(n_jobs=-1)(delayed(nextDoorForecaster.one_go)(X,Y,X_val,y_val,X_test) for i in range(num_forecasters))
+        queryElapsed = time.time() - queryStart
+        print(f'...prediction with {num_forecasters} forecasters done in {queryElapsed:.2f} sec!')
+        t_predictions = []
+        kNeighbours   = []
+        featWeight    = []
+        for item in r:
+            t_predictions.append(item[0])
+            kNeighbours.append(item[1])
+            featWeight.append(item[2])
+        # aggregated results for predictions
+        all_predictions = np.array(t_predictions)
+        predictions    = np.mean(all_predictions, axis=0)
+        predictions_std = np.std(all_predictions, axis=0)
+        predictions_max = np.max(all_predictions, axis=0)
+        predictions_min = np.min(all_predictions, axis=0)
+        #
+        num_neighbours = np.array(kNeighbours).mean()
+        features       = np.array(featWeight).mean(axis=0)
+
+        return {'predictions': predictions, 
+        'predictions_std': predictions_std, 
+        'predictions_min': predictions_min, 
+        'predictions_max': predictions_max,
+        'num_neighbours': num_neighbours,
+        'features': features}
+
+    @staticmethod
+    def getLinearScaler(inputData: 'np.array vector', y_max, y_min):
+        #[fcn_scaler, fcn_denormaliser, m_slope, b_intercept]
+        '''
+
+        x = [inputData.min(), inputData.max()]
+        A = np.vstack([x, np.ones(len(x))]).T
+        '''
+
+        x = [inputData.min(), inputData.max()]
+        A = np.vstack([x, np.ones(len(x))]).T
+        y = [y_min, y_max]
+        m_slope, b_intercept = np.linalg.lstsq(A, y, rcond=None)[0]
+
+        fcn_scaler       = lambda x: m_slope*x + b_intercept
+        fcn_denormaliser = lambda x_trans: (x_trans-b_intercept)/m_slope;
+
+        return {'fcn_scaler': fcn_scaler, 
+        'fcn_denormaliser': fcn_denormaliser, 
+        'm_slope': m_slope, 
+        'b_intercept': b_intercept}
