@@ -6,8 +6,10 @@ from sklearn.model_selection import train_test_split
 import scipy.io as sio
 import os
 from nextDoorForecaster import nextDoorForecaster
+from math import sqrt
+from joblib import Parallel, delayed
 
-dataRoot  = '/Users/carlos.aguilar/Google Drive/order/Machine Learning Part/PythonDevs'
+dataRoot  = './data'
 dataFile  = os.path.join(dataRoot, 'fakeArray.mat')
 matData   = sio.loadmat(dataFile)
 
@@ -23,52 +25,27 @@ inputVars   = ['num1', 'num2', 'confoundingVar',
 'c1_0', 'c1_1', 'c2_0', 'c2_1']
 responseVar = 'responseVar'
 
-# Instanciate the forecaster
-forecaster = nextDoorForecaster(training_split=0.5)
 
-# Solve NNLS
+# get datasets
 X = df.iloc[0:300][inputVars].values
 Y = df.iloc[0:300][responseVar].values
-
-# mind the values in X will be modified
-forecaster.train(X,Y)
-#forecaster.train(df[inputVars].values,df[responseVar].values)
-print(forecaster.normalise_vector(forecaster.featWeight, 100))
-
-df.describe()
 
 # validate
 X_val = df.iloc[300:400][inputVars].values
 y_val = df.iloc[300:400][responseVar].values
-y_hat, frc_error = forecaster.cv_neighbours(X_val, y_val)
-print(f'CV neighbours {forecaster.kNeighbours}')
-
-print(forecaster.get_basic_stats(frc_error))
 
 # test
 X_test = df.iloc[400::][inputVars].values
 y_test = df.iloc[400::][responseVar].values
-y_hat = forecaster.predict(X_test)
-
-errors = forecaster.get_frc_errors(y_test, y_hat)
-errors['MSE']
-errors['meanError']
-errors['MAPE']
 
 
+# Run the forecaster in parallel
+num_frcs = 40
+d_predictions = nextDoorForecaster.fit(X,Y,X_val,y_val,X_test,num_frcs)
+y_hat = d_predictions['predictions']
+errors = nextDoorForecaster.get_frc_errors(y_test, y_hat)
+print(f'{num_frcs} forecasters with MSE {errors["MSE"]:.2f} and MAPE {errors["MAPE"]:.2f} and mError {errors["meanError"]:.2f}')
 
-x_test = X_test[0]
-currentWeightsSorted, Y_trainSorted,_,_ =forecaster.calculateWeights(x_test)
-
-
-
-0
-
-
-
-
-
-
-
-
-
+nV = nextDoorForecaster.normalise_vector(d_predictions['features'], 100)
+var_importance = pd.DataFrame(nV, index=inputVars)
+var_importance
