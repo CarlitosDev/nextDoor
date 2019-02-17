@@ -14,11 +14,9 @@ class nextDoorForecaster:
         Forecasting engine class based on kNN+feature learning
 
         Carlos Aguilar, 08.02.19
-
-        autopep8 --in-place --aggressive recommender.py
-
         Updates:
          - 15.02.19 Add parallel capabilities through joblib
+         - 16.02.19 Add L2 regularisation
 
         Full documentation:
 
@@ -73,9 +71,11 @@ class nextDoorForecaster:
         self.min_max_scaler.transform(x_test)
         return x_test
 
-    def __solve_nnls_training(self, X, Y):
+    def __solve_nnls_training(self, X, Y, _lambda):
 
-        numRecords = X.shape[0]
+        numRecords  = X.shape[0]
+        numFeatures = X.shape[1]
+
         testSize   = round(numRecords*self.training_split)
 
         idx_test = np.random.choice(numRecords, testSize, replace=False)
@@ -96,6 +96,14 @@ class nextDoorForecaster:
 
         M = np.concatenate(M, axis=0).copy()
         e = np.concatenate(e, axis=0).copy()
+
+        # If regularisation
+        if _lambda > 0.0:
+            M_prime = _lambda*np.eye(numFeatures)
+            e_prime = np.zeros(numFeatures)
+            M = np.append(M, M_prime, axis = 0)
+            e = np.append(e, e_prime, axis = 0)
+
 
         featWeight, rnorm  = nnls(M, e)
         self.featWeight = featWeight
@@ -139,9 +147,9 @@ class nextDoorForecaster:
 
 
     # Public methods
-    def train(self, X_train, y_train):
+    def train(self, X_train, y_train, _lambda=0.0):
         self.__scale_X_train(X_train)
-        self.__solve_nnls_training(X_train, y_train)
+        self.__solve_nnls_training(X_train, y_train, _lambda)
         self.__X_train = X_train
         self.__Y_train = y_train
         # set the max number of neighbours available
@@ -219,7 +227,7 @@ class nextDoorForecaster:
         return d
 
     @staticmethod
-    def one_go(X_train,Y_train,X_val,y_val,X_test):
+    def one_go(X_train,Y_train,X_val,y_val,X_test,_lambda=0.0):
         forecaster = nextDoorForecaster(training_split=0.5)
         forecaster.train(X_train.copy(),Y_train.copy())
         _,_= forecaster.cv_neighbours(X_val.copy(), y_val.copy())
@@ -228,9 +236,9 @@ class nextDoorForecaster:
         return [predictions,forecaster.kNeighbours,forecaster.featWeight]
 
     @staticmethod
-    def fit(X,Y,X_val,y_val,X_test,num_forecasters=100):
+    def fit(X,Y,X_val,y_val,X_test,num_forecasters=100,_lambda=0.0):
         queryStart = time.time()
-        r = Parallel(n_jobs=-1)(delayed(nextDoorForecaster.one_go)(X,Y,X_val,y_val,X_test) for i in range(num_forecasters))
+        r = Parallel(n_jobs=-1)(delayed(nextDoorForecaster.one_go)(X,Y,X_val,y_val,X_test,_lambda) for i in range(num_forecasters))
         queryElapsed = time.time() - queryStart
         print(f'...prediction with {num_forecasters} forecasters done in {queryElapsed:.2f} sec!')
         t_predictions = []
@@ -242,11 +250,11 @@ class nextDoorForecaster:
             featWeight.append(item[2])
         # aggregated results for predictions
         all_predictions = np.array(t_predictions)
-        predictions    = np.mean(all_predictions, axis=0)
+        predictions     = np.mean(all_predictions, axis=0)
         predictions_std = np.std(all_predictions, axis=0)
         predictions_max = np.max(all_predictions, axis=0)
         predictions_min = np.min(all_predictions, axis=0)
-        #
+        # aggregate neighbours and features
         num_neighbours = np.array(kNeighbours).mean()
         features       = np.array(featWeight).mean(axis=0)
 
