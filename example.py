@@ -40,8 +40,9 @@ y_test = df.iloc[400::][responseVar].values
 
 
 # Run the forecaster in parallel
-num_frcs = 40
-d_predictions = nextDoorForecaster.fit(X,Y,X_val,y_val,X_test,num_frcs)
+num_frcs = 10
+_lambda  = 0.1#1e6
+d_predictions = nextDoorForecaster.fit(X,Y,X_val,y_val,X_test,num_frcs, _lambda)
 y_hat = d_predictions['predictions']
 errors = nextDoorForecaster.get_frc_errors(y_test, y_hat)
 print(f'{num_frcs} forecasters with MSE {errors["MSE"]:.2f} and MAPE {errors["MAPE"]:.2f} and mError {errors["meanError"]:.2f}')
@@ -49,3 +50,13 @@ print(f'{num_frcs} forecasters with MSE {errors["MSE"]:.2f} and MAPE {errors["MA
 nV = nextDoorForecaster.normalise_vector(d_predictions['features'], 100)
 var_importance = pd.DataFrame(nV, index=inputVars)
 var_importance
+'''
+                         0
+num1              2.440560
+num2             20.503866
+confoundingVar  100.000000
+c1_0              0.398413
+c1_1              0.000000
+c2_0             69.092624
+c2_1              0.000000
+'''

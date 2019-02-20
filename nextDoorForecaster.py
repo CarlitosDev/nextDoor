@@ -14,6 +14,7 @@ class nextDoorForecaster:
         Forecasting engine class based on kNN+feature learning
 
         Carlos Aguilar, 08.02.19
+        
         Updates:
          - 15.02.19 Add parallel capabilities through joblib
          - 16.02.19 Add L2 regularisation
@@ -227,8 +228,8 @@ class nextDoorForecaster:
         return d
 
     @staticmethod
-    def one_go(X_train,Y_train,X_val,y_val,X_test,_lambda=0.0):
-        forecaster = nextDoorForecaster(training_split=0.5)
+    def one_go(X_train,Y_train,X_val,y_val,X_test,_lambda=0.0, _training_split=0.5):
+        forecaster = nextDoorForecaster(training_split=_training_split)
         forecaster.train(X_train.copy(),Y_train.copy())
         _,_= forecaster.cv_neighbours(X_val.copy(), y_val.copy())
         
@@ -236,9 +237,9 @@ class nextDoorForecaster:
         return [predictions,forecaster.kNeighbours,forecaster.featWeight]
 
     @staticmethod
-    def fit(X,Y,X_val,y_val,X_test,num_forecasters=100,_lambda=0.0):
+    def fit(X,Y,X_val,y_val,X_test,num_forecasters=100, _lambda=0.0, _training_split=0.5):
         queryStart = time.time()
-        r = Parallel(n_jobs=-1)(delayed(nextDoorForecaster.one_go)(X,Y,X_val,y_val,X_test,_lambda) for i in range(num_forecasters))
+        r = Parallel(n_jobs=-1)(delayed(nextDoorForecaster.one_go)(X,Y,X_val,y_val,X_test,_lambda, _training_split) for i in range(num_forecasters))
         queryElapsed = time.time() - queryStart
         print(f'...prediction with {num_forecasters} forecasters done in {queryElapsed:.2f} sec!')
         t_predictions = []

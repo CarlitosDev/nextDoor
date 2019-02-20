@@ -11,8 +11,8 @@ from joblib import Parallel, delayed
 
 dataRoot  = './data'
 
-trainingSet = '/Users/carlosAguilar/Google Drive/order/Machine Learning Part/PythonDevs/trainingSet.xlsx'
-testSet = '/Users/carlosAguilar/Google Drive/order/Machine Learning Part/PythonDevs/testSet.xlsx'
+trainingSet = '/Users/carlosAguilar/Google Drive/order/Machine Learning Part/PythonDevs/trainingSet3.xlsx'
+testSet = '/Users/carlosAguilar/Google Drive/order/Machine Learning Part/PythonDevs/testSet3.xlsx'
 
 
 df_training = pd.read_excel(trainingSet)
@@ -32,14 +32,16 @@ numericalVarNames = ['total_stores',
 inputVars   = numericalVarNames
 responseVar = 'wk1_sales_all_stores'
 
+df_training.shape[0]
+
 
 # get datasets
-X_train = df_training.iloc[0:200][inputVars].values
-y_train = df_training.iloc[0:200][responseVar].values
+X_train = df_training.iloc[0:550][inputVars].values
+y_train = df_training.iloc[0:550][responseVar].values
 
 # validate
-X_val = df_training.iloc[200::][inputVars].values
-y_val = df_training.iloc[200::][responseVar].values
+X_val = df_training.iloc[550::][inputVars].values
+y_val = df_training.iloc[550::][responseVar].values
 
 # test
 X_test = df_test[inputVars].values
@@ -50,11 +52,13 @@ y_test = df_test[responseVar].values
 
 
 # Run the forecaster in parallel
-num_frcs = 25
-lambda_value = 0.15
-_training_split = 0.25
+num_frcs = 50
+#lambda_value = 100000
+lambda_value = 0.0
+_training_split = 0.75
 d_predictions = nextDoorForecaster.fit(X_train,y_train,X_val,y_val,X_test,num_frcs, lambda_value, _training_split)
 y_hat = d_predictions['predictions']
+print(y_hat)
 errors = nextDoorForecaster.get_frc_errors(y_test, y_hat)
 print(f'{num_frcs} forecasters with MSE {errors["MSE"]:.2f} and MAPE {errors["MAPE"]:.2f} and mError {errors["meanError"]:.2f}')
 
