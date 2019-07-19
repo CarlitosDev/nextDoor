@@ -1,7 +1,7 @@
 # nextDoor
+Python implementation of the method "Forecasting Promotional Sales Within the Neighbourhood", publicly available [here](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8727882)
 
-Python implementation of the method "Forecasting Promotional Sales Within the Neighbourhood", publicly available in https://ieeexplore.ieee.org/document/8727882
-
+![Alt text](figs/Forecasting_as_a_service.png?raw=true "Summary of the implementation")
 
 # Notebooks with examples 
 
