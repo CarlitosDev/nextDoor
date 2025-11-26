@@ -1,0 +1,15 @@
+repos:
+  # Ruff (lint + format)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.0  # Use the latest stable version
+    hooks:
+      - id: ruff
+        args: ["--fix"]  # Auto-fix where possible
+        language_version: python3.12
+
+  # Black
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+        language_version: python3.12

@@ -1,0 +1,38 @@
+[project]
+name = "nextdoor"
+version = "2.0.0"
+description = "Forecasting Promotional Sales Within the Neighbourhood - A kNN+feature learning forecasting engine"
+authors = [
+    {name = "Carlos Aguilar", email = "carlos.aguilar.palacios@gmail.com"}
+]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.2.1",
+    "pandas>=2.2.3",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.15.1",
+    "joblib>=1.4.2",
+]
+
+[project.urls]
+Homepage = "https://ieeexplore.ieee.org/document/8727882"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nextdoor"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
