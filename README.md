@@ -25,9 +25,20 @@ keeping the v2 API:
   `LeafSimilarityForecaster` (random-forest leaf co-occurrence proximity;
   supports training globally across SKUs while keeping neighbour-based
   explanations via `explain()`).
-- **Ablation benchmark**: `uv run python benchmarks/ablation.py` reproduces the
-  paper's collinearity/endogeneity surrogate experiment and compares every
-  variant, including the legacy configuration (`k_selection="bias"`).
+- **Retrieval-augmented forecasting (Tier 3)**: `RetrievalAugmentedForecaster`
+  trains one global cross-SKU embedding, retrieves neighbours in embedding
+  space, and returns a conformal predictive distribution — built for the
+  cold-start case the per-SKU design cannot handle. Optional TabPFN backend
+  (degrades to MLP when `tabpfn` is absent).
+- **Benchmarks**: `benchmarks/ablation.py` reproduces the paper's
+  collinearity/endogeneity surrogate experiment (legacy config included via
+  `k_selection="bias"`); `benchmarks/cold_start.py` quantifies cross-SKU
+  pooling vs per-SKU models; `benchmarks/forecaster_in_the_loop.py` turns the
+  interpretability claim into a falsifiable experiment (editing vs accept/reject
+  vs raw, as a function of simulated forecaster skill).
+
+The full retrospective, including the empirical results of every change, is in
+[fable_thought_about_this.md](fable_thought_about_this.md).
 
 
 ## Installation

@@ -433,9 +433,10 @@ Credit where due, because a 2026 reading can be unfairly smug:
 
 ## 9. Implementation status (June 2026)
 
-Everything in Tier 1 and Tier 2 is now implemented on the `fable-improvements`
-branch (the Tier 3 items — the TabPFN-style rethink and the
-forecaster-in-the-loop study — are research projects, not code changes):
+All three tiers are now implemented on the `fable-improvements` branch — Tier 3
+included, scoped to runnable code and simulation experiments (the parts that
+remain genuinely open, e.g. a *human* forecaster study and rolling-origin
+evaluation on the real retailer data, are noted at the end):
 
 - `src/nextdoor/forecaster.py` — rewritten. Bug fixes (3a–3d), intercept (2b),
   `target_transform` (2c), optional pair weighting (2d), robust scaling and
@@ -446,9 +447,13 @@ forecaster-in-the-loop study — are research projects, not code changes):
 - `src/nextdoor/mlkr.py` — diagonal MLKR by gradient descent (Tier 2, item 6).
 - `src/nextdoor/leaf_forecaster.py` — random-forest leaf-proximity similarity
   with the same neighbour-explanation interface (Tier 2, item 7).
-- `tests/test_improvements.py` — 23 tests covering each fix.
-- `benchmarks/ablation.py` — the missing ablation, run on a reproduction of
-  the paper's own Section IV-A surrogate generator.
+- `src/nextdoor/retrieval.py` — `RetrievalAugmentedForecaster`: a global
+  cross-SKU MLP embedding, neighbour retrieval in embedding space, conformal
+  predictive distribution, and the same `explain()` interface; optional TabPFN
+  backend that degrades gracefully (Tier 3, item 9).
+- `tests/test_improvements.py` + `tests/test_tier3.py` — 31 tests in total.
+- `benchmarks/ablation.py`, `benchmarks/forecaster_in_the_loop.py`,
+  `benchmarks/cold_start.py` — the ablation plus the two Tier 3 experiments.
 
 ### What the ablation actually showed (5 seeds, n=500, chronological 60/20/20)
 
@@ -490,6 +495,61 @@ Findings worth recording:
 5. **CQR intervals are calibrated out of the box**: empirical coverage 0.80 /
    0.78–0.82 at nominal 80% across scenarios, with no extra computation beyond
    what the method already does.
+
+### Tier 3, item 9 — cross-SKU retrieval (`benchmarks/cold_start.py`)
+
+The global retrieval forecaster was tested against per-SKU NextDoor across
+three regimes (10 seeds each), and the result is more honest than the M5-era
+"global always wins" slogan — it wins *where the design predicts it should*:
+
+| regime | per-SKU MAE | global MAE | change |
+|---|---|---|---|
+| ample history, no shared structure | 85 | 477 | **−464%** |
+| short history, structure shared via descriptors | 194 | 201 | −4% |
+| brand-new SKUs, zero history (leave-SKU-out) | 412 | 136 | **+67%** |
+
+The takeaways:
+- **Pooling is not free.** When each SKU has ample independent history and no
+  cross-SKU structure to borrow, a dedicated per-SKU model wins decisively and
+  the global embedding only adds variance. Anyone claiming "just go global"
+  should run this row first.
+- **Cold-start is the real prize.** For brand-new products — the exact failure
+  the paper's own conclusion flags ("a new product gets nothing") — the per-SKU
+  method can only emit a global median, while the descriptor-based global model
+  cuts the error by two-thirds. This is the case to ship the retrieval
+  forecaster for, used *alongside* (not instead of) the per-SKU method.
+
+### Tier 3, item 10 — the interpretability claim, made testable (`benchmarks/forecaster_in_the_loop.py`)
+
+A simulated forecaster of tunable skill `s` interacts with the model in two
+ways: **accept/reject** (veto the forecast, fall back to typical sales — all a
+black box affords) and **edit** (down-weight the neighbours they believe are
+misleading — what NextDoor affords). Both draw on the same noisy view of which
+neighbours come from the query's true demand regime. Mean absolute error
+(20 seeds, n=600; raw model = 111 regardless of skill):
+
+| skill | accept/reject | edit neighbours |
+|---|---|---|
+| 0.00 | 758 | 172 |
+| 0.50 | 426 | 119 |
+| 1.00 | 107 |  84 |
+
+And catastrophic (>50%) error volume at full skill: raw 2.2%, accept/reject
+2.1%, **edit 0.9%**. Findings:
+- **Editing dominates accept/reject at every skill level.** A veto-only UI
+  forces an all-or-nothing fallback that does real damage at low-to-moderate
+  skill (758 vs raw 111 at s=0); selective neighbour editing degrades
+  gracefully and, past s≈0.5, *improves* on the automatic forecast.
+- **The interface earns its keep.** At full skill, editing beats accept/reject
+  by 23 MAE (~21% of the raw error) and more than halves the catastrophic-error
+  volume. The interpretability claim is therefore not just aesthetic: under
+  these assumptions the editable-neighbour interface is worth a measurable
+  accuracy gain that a black-box model cannot offer at any skill level.
+- This is a *simulation* — it makes the claim falsifiable and sizes the prize,
+  but the assumptions (a noisy regime-membership channel, a blunt fallback) are
+  mine, not data. The remaining genuinely-open work is the real human study and
+  rolling-origin evaluation on the retailer datasets; those need data and IRB,
+  not code.
 
 ## Appendix: defect → evidence cross-reference
 
