@@ -4,6 +4,31 @@ Python implementation of the method "Forecasting Promotional Sales Within the Ne
 
 ![Alt text](figs/Forecasting_as_a_service.png?raw=true "Summary of the implementation")
 
+## What's new in v3 (2026 revision)
+
+A retrospective analysis of the 2019 method ([fable_thought_about_this.md](fable_thought_about_this.md))
+identified several bugs and statistical defects; v3 implements the fixes while
+keeping the v2 API:
+
+- **Bug fixes**: k is now selected by mean absolute validation error (the old
+  criterion picked the k where errors *cancel*); inputs are never mutated;
+  the default validation split is chronological; the k sweep is inclusive.
+- **Statistical fixes**: NNLS intercept (noise floor), `target_transform="auto"`
+  (log1p vs identity selected on the validation set), Gaussian kernel with
+  validated bandwidth (no more pole at zero distance), robust scaling,
+  optional whitening, optional pair down-weighting and recency decay.
+- **Probabilistic output**: `predict_quantiles` (weighted neighbour quantiles,
+  for newsvendor-style ordering) and `predict_interval` (split-conformal /
+  CQR intervals with finite-sample coverage, calibrated on the validation set).
+- **Alternative similarity engines**: `metric_learner="mlkr"` (diagonal Metric
+  Learning for Kernel Regression, gradient-based) and
+  `LeafSimilarityForecaster` (random-forest leaf co-occurrence proximity;
+  supports training globally across SKUs while keeping neighbour-based
+  explanations via `explain()`).
+- **Ablation benchmark**: `uv run python benchmarks/ablation.py` reproduces the
+  paper's collinearity/endogeneity surrogate experiment and compares every
+  variant, including the legacy configuration (`k_selection="bias"`).
+
 
 ## Installation
 
